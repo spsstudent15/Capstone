@@ -1,0 +1,193 @@
+---
+title: "Civil Service Salaries in New York City"
+author: "Armenoush Aslanian-Persico"
+date: "March 22, 2018"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+## About New York City Civil Service
+
+The City of New York employs nearly 300,000 individuals across over 50 agencies, or departments. While civil service is known to have lower salaries than private sector equivalents, city jobs have some attractive benefits and advantages. The hiring and promotion processes can be antiquated and opaque, and rely largely on the civil service title process. Each city employee is required to be in a civil service title. 
+
+Each title is also represented by a specific labor union. The labor unions negotiate benefits such as health insurance and vacation. Employees will have different vacation accrual and health benefits depending on the union that represents them. As of 2018, all employees are required to have union dues deducted from their paychecks. 
+
+In recent years, the City has made many datasets available via the NYC Open Data website, in part due to the 2012 NYC Open Data law. (https://www1.nyc.gov/site/doitt/initiatives/open-data-law.page). 
+
+The focus of this project is three datasets which each contain different job data. These datasets are a titles dataset, a payroll dataset, and a jobs listings dataset. 
+
+## The datasets
+
+The civil service titles dataset contains salary and union information. For example, a "Analyst (CFB)" in 2015 was required to be paid between $33,781 and $98,244 depending on the specific subtitle, and was represented by the Staff Analysts union. The most recent update for this dataset was 2017.
+
+The payroll dataset contains a semi-anonymized list of all individuals on the City's payroll, including their agency and civil service title code, but not including their civil service title. For complete information, these two datasets must be cleaned and combined. The most recent update for this dataset was 2015.  
+
+The jobs dataset contains current postings as of 2018. This is updated approximately weekly. However, this dataset may have some inaccuracies including expired postings. For this project, the jobs dataset serves the function of test data for a predictive model.
+
+## Code, tables, graphs
+
+Code and output are available at:
+
+https://github.com/spsstudent15/capstone
+
+---
+
+# Datasets
+
+The datasets were imported and cleaned.
+
+## Dataset 1: Titles
+
+The raw data had a number of issues which required cleaning and indicator columns. For efficient matching, multiple subtitles were combined into one title. For example, a Sign Language Interpreter may have 5 level of title, where an employee may be promoted through the levels. In the cleaned dataset, the lowest salary of the lowest title and the highest salary of the highest title was captured. 
+
+
+Many observations in this dataset had errors or voided information. We see that the majority of these complete cases have a valid salary listed from the Titles dataset. A very small percentage have $0 listed in the min and max possible for the salary as determined by the title designation. Since these employees received a non-zero salary, this indicates an error in the Titles dataset for these 10 observations. his is indicated in the SalaryMinMaxValid column. These rows were considered errors or outdated information and were removed. 
+
+The salary ranges indicated that this dataset mixed hourly and salaried workers. Some workers paid by the hour are in fact full time employees, but their title requires an hourly pay rate. These are mostly trades and seasonal staff. This is indicated by the PayType and PayPeriod columns.
+
+A PayType of EitherAnnualHourly indicates the min and max for the title are a broad range encompassing both hourly rates and annual rates. For example, the min salary may be $10, and the max salary may be $30,000. This indicates there may be multiple subtitles within the broader title, where some subtitles are paid hourly, and some are paid annually. Alternately, the data may have errors or may be outdated. It is not allowable to list a salary range in a job posting that is both hourly and annual.
+
+Many titles had notes in descriptions indicating that the titles were deleted or no longer applicable. This is indicated in the TitleStatus column. This could be due to the Titles dataset being more current than the Payroll dataset, in which case the employees in the defunct titles will likely have been transferred to equivalent active titles. It could also indicate errors in the datasets.
+
+There are 4424 unique titles.
+
+## Dataset 2: Payroll
+
+There are 570491 observations in the payroll dataset. This includes 269838 observations for 2014 and 300653 observations for 2015. The majority of this project will focus on the 2015 data as it is more recent.
+
+Grouping and summarizing this data shows the city agencies with the highest number of employees. NYC Transit Authority, Police Department (NYPD), Department of Citywide Administrative Services (DCAS), and Fire Department (FDNY) are the top four. 
+
+## Dataset 3: Jobs
+
+This section is in progress and will be available in a future update.
+
+## Merging the datasets
+
+Merging the Titles and Payroll datasets results in many incomplete observations. 153485 rows in the Payroll set did not have a matching title. According to DCAS, which maintains this dataset, some city agencies are considered "non-mayoral" and are not included in some reporting. The excluded employees are primarily from the NYC Transit Authority (MTA), the City University of New York (CUNY), some Department of Education titles (DOE), the Triboro Bridge and Tunnel Authority (TBTA), and some NYPD titles.
+
+For the purpose of this project, these incomplete observations were excluded from the analysis as there was insufficient data for analysis.
+
+The final merged dataset contains 417006 observations of 20 variables, including title, year, employee name, agency name, salary, title description, minimum title salary, maximum title salary, salary type, and union information.
+
+
+---
+
+# Statistics
+
+The merged dataset was examined and sliced for more accurate analysis.
+
+## Union representation
+
+The unions with the most representation appear to be the PBA, DC37, Corrections, and Firefighters. "Competitive OJ" indicates "Original Jurisdiction" titles, which receive benefits through the Management Benefits Fund and not a specific union. Recently, some manager titles became unionized; however, this dataset predates that transition.
+
+## Split by salary
+
+For easier analysis, the dataset was split into salaries under $10,000 and over $10,000.
+
+## Salaries under $10,000
+
+89701 observations of complete cases are below 10K. This includes trades workers such as carpenters, painters, and mechanics, which are full-time, but are listed with an hourly salary instead of annual. This causes these employees to appear as low-wage workers when they may actually earn a mid- or high-range annual salary. For clarity, these have been separated instead of attempting to calculate an equivalent annual rate.
+
+Unions with the most sub-10K employees are "Competitive OJ", DC37 Job Training Participants, "Part Time OJ", Seasonals, and DC37 School Crossing Guards. The "OJ" titles and Seasonals are likely not union titles, just a non-union category.
+
+Agenices with the most sub-10K employees are DCAS, Parks, Sanitation, NYPD, and NYCHA. These agencies hire many hourly part-time and seasonal workers. Parks hires seasonal staff during the summer to staff city beaches, and Sanitation hires extra snow removal staff during the winter.
+
+[See Chart 3.1]
+
+Titles representing the most sub-10K employees are Monitors, Job Training Participants, College Assistants, College Aides, and School Crossing Guards. Monitors may be civil service exam or election monitors. College assistants and aides are usually interns enrolled in school while working for the city.
+
+[See Chart 3.2]
+
+## Split by year
+
+For easier analysis, the under-10K dataset was split into 2014 and 2015. The distribution of union, agency and title representation is similar for 2015 compared to the multi-year data. 
+
+## Highest salaries below 10K
+
+The highest average salaries under $10,000 are for City Service Aides, Council Aides, and City Security Aides, all ranging in the $8000 range. The lowest salaries were for City Seasonal Aides, College Interns, Monitors, Council Members, and the Minority Leader, all under $15. These are likely hourly rates. In the case of City Council members and the Minority Leader, this may be a nominal token salary or a formality.
+
+## Salaries over $10,000
+
+Unions with the most 10K+ salaries are the Police Officers Benevolent Association (PBA), DC37 Social Service Titles, DC37 Clerical Titles, Correction Officers Benevolent Association, and the Uniformed Firefighters Association.
+
+Agencies with the most 10K+ salaries are the NYPD, FDNY, HRA (Human Resources Agency/Social Services), COrrection, Education, and Sanitation.
+
+[See Chart 3.3]
+
+Titles representing the most 10K+ employees are Police Officers, Correction Officers, Firefighters, Sanitation Workers, and School Safety Agents.
+
+[See Chart 3.4]
+
+## Split by year
+
+For easier analysis, the 10K+ dataset was split into 2014 and 2015. The distribution of union, agency and title representation is similar for 2015 compared to the multi-year data. 
+
+## Highest salaries above 10K
+
+The remaining focus will be on 2015 data for salaries above $10,000.
+
+There are some extreme outliers in the salary data. This dataset indicates base salary and not overtime pay. There is one Pension Investment Advisor, earning $350,000, followed by one Chief Actuary at $281,875, and one First Deputy Mayor at $263,239. Agency Commissioners and Deputy Commissioners also range in the $200,000 range. 
+
+At the bottom end of average salaries above $10,000 are Community Service Aides and City Seasonal Aides, and other part time jobs. These were also represented in the below-10K group, as they span this range.
+
+By count of title, there were 24,044 Police Officers on payroll in 2015 earning above $10,000. This is followed by 8,693 Correction Officers, 8,424 Firefighters, and 6,683 Sanitation Workers.
+
+## Distribution of salaries above 10K
+
+[See Chart 3.5]
+
+A distribution plot of salaries over $10K shows the majority are under $100,000 with a concentration between $30,000 and $80,000. Finding city employment with $100K+ salaries is rare.
+
+## Count of jobs vs. average salary per title
+
+[See Chart 3.6]
+
+This scatterplot shows the average salary by title for the 100 most frequently appearing titles. The outlier point along the x axis is the 24,044 Police Officers with an average salary of $64,998. The outlier point along the y axis is the 844 Assistant Corporal Counsels with an average salary of $161,297.
+
+Redrawing the plot with narrower x axis limits shows a concentration of jobs below $80K salary with fewer than 1,000 employees serving in the title.
+
+## Titles with the greatest salary range
+
+[Section in progress.]
+
+What titles have the most opportunities for salary increases?
+
+---
+
+# Correlations
+
+[Section in progress.]
+
+## More generous agencies
+
+For titles across multiple agencies, do some agencies hire the same title at a higher average salary?
+
+[See Charts 3.7 through 3.10]
+
+## Stronger unions
+
+Is there a correlation between union representation and salary?
+
+## Larger agency budgets
+
+Is there a relationship between an agency's budget and its average salaries?
+
+---
+
+# Predictions
+
+[Section in progress.]
+
+This section will aim to answer if 2015 data can predict 2018 job postings. Specifically, do the agencies with higher average salaries and greater hiring volume in 2015 continue to follow these trends in 2018?
+
