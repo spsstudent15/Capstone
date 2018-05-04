@@ -1,0 +1,201 @@
+---
+title: 'Part 4: Analysis'
+output:
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Libraries
+
+```{r 0-libraries, warning=FALSE, message=FALSE}
+library(proto)
+library(gsubfn)
+library(RSQLite)
+library(knitr)
+library(data.table)
+library(plyr)
+library(dplyr)
+library(sqldf)
+library(ggplot2)
+library(RColorBrewer)
+library(grid)
+library(ggrepel)
+library(plotly)
+library(kableExtra)
+```
+
+
+# Table: Which titles have employees across the most agencies, excluding agencies which are Community Boards?
+
+These could be considered the most flexible titles, for employees who may want to move around across agencies while retaining their civil service title.
+
+```{r 8a}
+df15<- data.frame(read.csv("df15.csv"),stringsAsFactors = FALSE)
+df7<-df15
+
+df7a<-df7[- grep("COMMUNITY BOARD", df7$ADDRESS),]
+
+df7a %>%
+  group_by(Description) %>%
+  summarise(count = n_distinct(ADDRESS))%>% 
+  arrange(desc(count))%>%
+  top_n(20)%>%
+  kable("html") %>%
+  kable_styling() 
+```
+
+# Bar Plot: Which titles have employees across the most agencies, excluding agencies which are Community Boards?
+
+```{r 8b, eval=FALSE}
+# This keeps all 1089 descriptions from the original data frame
+df7b<-df7a %>%
+  group_by(Description) %>%
+  summarise(count = n_distinct(ADDRESS))%>% 
+  arrange(desc(count))%>%
+  top_n(10)%>%
+  as.data.frame()
+
+str(df7b)
+
+p7 <- plot_ly(
+  data = df7b, 
+  x = ~Description, 
+  y = ~count, 
+  type = 'bar', 
+  #mode = 'markers',
+  hoverinfo='text',
+  text = ~paste(
+    'Title: ', Description,
+    '<br> Employees: ', count) ) %>%
+  layout(title="Titles across the most agencies, excluding Community Boards")
+
+p7
+```
+
+```{r 8c}
+
+df7b<- data.frame(read.csv("titlesmultipleagencies.csv"),stringsAsFactors = FALSE)
+
+df7b$Description <- factor(df7b$Description, levels = unique(df7b$Description)[order(df7b$COUNT, decreasing = TRUE)])
+
+
+p7 <- plot_ly(
+  data = df7b, 
+  x = ~Description, 
+  y = ~COUNT, 
+  type = 'bar', 
+  hoverinfo='text',
+  fill="#D7BDE2",
+  text = ~paste(
+    'Title: ', Description,
+    '<br> Agencies: ', COUNT) ) %>%
+  layout(title="Titles across the most agencies, excluding Community Boards", margin = list(b = 200), xaxis = list(tickangle = 90))
+
+p7
+
+```
+
+
+# Table: What are the highest average salaries by agency and title?
+
+```{r 9, eval=FALSE}
+
+summary(df7a)
+
+df7a %>%
+  group_by(Description) %>%
+  summarise(count = n_distinct(ADDRESS), avgsal=mean(SAL))%>% 
+  arrange(desc(avgsal))%>%
+  top_n(20)%>%
+  kable("html") %>%
+  kable_styling() 
+```
+
+```{r 9a, eval=TRUE}
+
+df7c <- filter(df7a, 
+                 TITLE == "56057" | 
+                 TITLE == "10124" | 
+                 TITLE == "10251" | 
+                 TITLE == "56058" | 
+                 TITLE == "10026" | TITLE == "1002A" | 
+                 TITLE == "10050" | 
+                 TITLE == "95005" | 
+                 TITLE == "12627" | 
+                 TITLE == "10252" | 
+                 TITLE == "1002C"  
+                 )
+
+# 56057 COMMUNITY ASSOCIATE
+# 10124 PRINCIPAL ADMINISTRATIVE ASSOC
+# 10251 CLERICAL ASSOCIATE
+# 56058 COMMUNITY COORDINATOR
+# 10026, 1002A ADMINISTRATIVE STAFF ANALYST (
+# 10050 COMPUTER SYSTEMS MANAGER
+# 95005 EXECUTIVE AGENCY COUNSEL
+# 12627 ASSOCIATE STAFF ANALYST
+# 10252 SECRETARY
+# 1002C ADM MANAGER-NON-MGRL FRM M1/M2
+
+
+df7c %>%
+  group_by(ADDRESS, Description) %>%
+  summarise(count = n(), avgsal=mean(SAL))%>% 
+  arrange(Description, desc(avgsal))%>%
+  top_n(20)%>%
+  kable("html") %>%
+  kable_styling()  
+
+df7csv<-df7c %>%
+  group_by(ADDRESS, Description) %>%
+  summarise(count = n(), avgsal=mean(SAL))%>% 
+  arrange(Description, desc(avgsal))
+
+#write.csv(df7csv,'df7csv.csv')
+```
+
+
+# For titles across multiple agencies, do some agencies hire the same title at a higher average salary?
+
+```{r 9b}
+
+df7d<- data.frame(read.csv("topsalagencies-bytitles.csv"),stringsAsFactors = FALSE)
+
+df7d$Agency <- factor(df7d$Agency, levels = unique(df7d$Agency)[order(df7d$COUNT, decreasing = TRUE)])
+
+
+p7d <- plot_ly(
+  data = df7d, 
+  x = ~Agency, 
+  y = ~COUNT, 
+  type = 'bar', 
+  hoverinfo='text',
+  fill="#76D7C4",
+  text = ~paste(
+    'Agency: ', Agency,
+    '<br> Times Appearing in Top 10: ', COUNT) ) %>%
+  layout(title="Highest Paying Agencies for Select Titles, Excluding Community Boards", margin = list(b = 200), xaxis = list(tickangle = 90, title=""))
+
+p7d
+
+```
+
+
+# What titles have the most opportunities for salary increases?
+## Min and max in each title
+
+# What are the most significant changes between 2014 and 2015?
+
+# Is there a correlation between union representation and salary?
+
+# Can this data predict current job postings in 2018? 
+
+# Is there a relationship between an agency's budget and its average salaries?

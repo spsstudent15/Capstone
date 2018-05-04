@@ -1,0 +1,327 @@
+---
+title: 'Part 5: Updated Dataset'
+output:
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction 
+
+### Background
+
+The City of New York updated their payroll dataset in late April 2018.
+
+The payroll dataset contained the following information.
+
+
+### Libraries
+
+```{r 0-libraries, warning=FALSE, message=FALSE}
+library(proto)
+library(gsubfn)
+library(RSQLite)
+library(knitr)
+library(data.table)
+library(plyr)
+library(dplyr)
+library(sqldf)
+library(ggplot2)
+library(RColorBrewer)
+library(grid)
+library(ggrepel)
+library(plotly)
+library(kableExtra)
+
+# required files chunk 1
+# 20180305titles.csv
+# 20180425CivilList.csv
+
+
+```
+
+# Import, clean, preliminary statistics
+
+### Import payroll and titles datasets
+
+```{r 1}
+#import titles
+dft <- data.frame(read.csv("20180305titles.csv"),stringsAsFactors = FALSE)
+
+#import payroll
+df <- data.frame(read.csv("20180425CivilList.csv"),stringsAsFactors = FALSE)
+
+#payroll change factors to character
+df %>% mutate_if(is.factor, as.character) -> df
+
+#payroll show head
+df %>%
+  head(5)%>%
+  kable
+
+#titles show head
+dft %>%
+  head(5)%>%
+  kable
+```
+
+### Show structure and set column names
+
+```{r 2}
+#payroll show structure
+str(df)
+
+#title set column names
+setnames(dft, "UniqueTitle", "title")
+
+#payroll set column names
+setnames(df, "CALENDAR.YEAR", "year")
+setnames(df, "AGENCY.CODE", "agencycode")
+setnames(df, "EMPLOYEE.NAME", "empname")
+setnames(df, "AGENCY.NAME", "agency")
+setnames(df, "TITLE.CODE", "title")
+setnames(df, "PAY.CLASS", "payclass")
+setnames(df, "SALARY.RATE", "sal")
+
+
+```
+
+### Show count of records by year
+
+```{r 3}
+#payroll show count by year
+df %>%
+     group_by(year) %>%
+     summarise(total.count=n()) %>%
+     arrange((year))
+```
+
+### Join Payroll and Titles tables
+
+```{r 4}
+#left outer join to match by title
+dfm<-merge(x = df, y = dft, by = "title", all.x = TRUE)
+dfm %>% mutate_if(is.factor, as.character) -> dfm
+
+#show structure of merged dataset. Should have same number of observations as payroll dataset -- 1161078
+str(dfm)
+```
+
+### All years combined - show most common descriptions
+
+```{r 5}
+dfm %>%
+     group_by(Description) %>%
+     summarise(total.count=n()) %>%
+     arrange(desc(total.count))
+```
+
+### All years combined - show incomplete cases to be excluded
+
+```{r 6}
+dfna <- dfm[is.na(dfm$Description),]
+
+dfna %>%
+     group_by(agency) %>%
+     summarise(total.count=n()) %>%
+     arrange(desc(total.count))%>%
+  head(70)%>%
+  kable
+
+dfna %>%
+     group_by(year) %>%
+     summarise(total.count=n()) %>%
+  head(5)%>%
+  kable
+```
+
+### View joined table; complete cases only
+
+```{r 7}
+#show complete cases only-- do not include NA rows
+dfc<-dfm[complete.cases(dfm), ]
+
+#convert salary to numeric, remove currency symbol
+dfc$sal <- as.numeric(gsub('[$,]', '', dfc$sal))
+
+#show head by descending salary
+dfc %>%
+    arrange(desc(sal))%>%
+  head(5)%>%
+  kable
+
+str(dfc)
+```
+
+### Export complete cases
+```{r 8, eval=FALSE}
+#changed to eval=FALSE after first run.
+write.csv(dfc, file = "dfc.csv")
+```
+
+# Investigate Complete Cases
+
+The following analysis relates to complete observations only. These observations are where the title code in the payroll list had a matching title code in the titles list. The incomplete cases were dropped from this analysis. 
+
+Incomplete cases primarily include CUNY, Triboro Bridge and Tunnel Authority, MTA, HHC, and other "non-mayoral" agencies. A small percentage of incomplete cases fall into mayoral agencies.
+
+### Pay Types
+
+```{r 9}
+bypaytype<- dfc %>% count(PayType, year) %>% ungroup() %>% arrange(desc(n))
+
+kable(head(bypaytype,10))
+```
+
+EitherAnnualHourly indicates the min and max for the title are a broad range encompassing both hourly rates and annual rates. For example, the min salary may be $10, and the max salary may be $30,000. This indicates there may be multiple subtitles within the broader title, where some subtitles are paid hourly, and some are paid annually. Alternately, the data may have errors or may be outdated. It is not allowable to list a salary range in a job posting that is both hourly and annual.
+
+
+### Unique values in the SalaryMinMaxValid Column
+
+```{r 10}
+byvalidsal<- dfc %>% count(SalaryMinMaxValid, year) %>% ungroup() %>% arrange(desc(n))
+
+kable(head(byvalidsal,10))
+```
+
+
+We see that the majority of these complete cases have a valid salary listed from the Titles dataset. A very small percentage have $0 listed in the min and max possible for the salary as determined by the title designation. Since these employees received a non-zero salary, this indicates an error in the Titles dataset for these 10 observations.
+
+### Unique values in the TitleStatus  Column
+
+
+```{r 11}
+bytitlestatus<- dfc %>% count(TitleStatus, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(bytitlestatus,10))
+
+```
+
+According to the Titles dataset, some of the employees in the payroll have titles that are considered deleted titles. This could be due to the Titles dataset being more current than the Payroll dataset, in which case the employees in the defunct titles will likely have been transfered to equivalent active titles. It could also indicate errors in the datasets.
+
+### Unique values in the UnionName Column
+
+```{r 12}
+byunion<- dfc %>% count(UnionName, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(byunion,10))
+
+```
+
+
+# Salaries Under 10K
+
+### Split dataset into Over 10K and under 10K groups
+
+For easier analysis, the dataset is split into salaries under 10K and over 10K.
+
+```{r 13}
+df10<-subset(dfc, sal>=10000)
+dfsub10<-subset(dfc, sal<10000)
+```
+
+
+The following section relates to salaries under 10K only. This includes trades workers such as carpenters, painters, and mechanics, which are full-time, but are listed with an hourly salary instead of annual. This causes these employees to appear as low-wage workers when they may actually earn a mid- or high-range annual salary. For clarity, these have been separated instead of attempting to calculate an equivalent annual rate.
+
+### Union Representation Under 10K
+
+```{r 14}
+byunionsub10<- dfsub10 %>% count(UnionName, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(byunionsub10,10))
+```
+
+
+### Agency Representation Under 10K
+
+```{r 15}
+byagencysub10<- dfsub10 %>% count(agency, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(byagencysub10,10))
+```
+
+
+### Title Representation Under 10K
+
+```{r 16}
+bytitlesub10<- dfsub10 %>% count(Description, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(bytitlesub10,10))
+```
+
+
+# Salaries over 10K
+
+The following section relates to salaries under 10K only.
+
+
+### Union Representation Over 10K
+
+```{r 17}
+byunion10plus<- df10 %>% count(UnionName, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(byunion10plus,10))
+```
+
+
+### Agency Representation Over 10K
+
+```{r 18}
+byagency10plus<- df10 %>% count(agency, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(byagency10plus,10))
+```
+
+
+### Title Representation Over 10K
+
+```{r 19}
+bytitle10plus<- df10 %>% count(Description, year) %>% ungroup() %>% arrange(desc(n))
+kable(head(bytitle10plus,10))
+```
+
+### Agency and Title Distribution Over 10K
+
+```{r 20}
+
+summary10<- df10 %>% count(agency, Description) %>% ungroup() %>% arrange(desc(n))
+
+kable(head(summary10,10))
+```
+
+### Average Salary by Title Over 10K
+
+10 highest and 10 lowest average salaries by title.
+
+```{r 21}
+salbytitle<-df10 %>%
+  group_by(Description) %>%
+  mutate(Count = n()) %>%
+  group_by(title, Description,  Count) %>%
+  summarise_at(vars(sal), funs(mean(., na.rm=TRUE)  ))%>%
+  arrange(desc(sal))
+
+kable(head(salbytitle,10))
+kable(tail(salbytitle,10))
+```
+
+### Average Salary by Title Over 10K, 10 Most Common Titles
+
+```{r 22}
+salbytitle2<-df10 %>%
+  group_by(Description) %>%
+  mutate(Count = n()) %>%
+  group_by(title, Description, Count) %>%
+  summarise_at(vars(sal), funs(round(mean(., na.rm=TRUE),0)  ))%>%
+  arrange(desc(Count))
+
+kable(head(salbytitle2,10))
+
+```
+
+### Export complete cases over 10K
+
+```{r 23, eval=FALSE}
+#changed to eval=FALSE after first run.
+write.csv(df10, file = "df10.csv")
+```
