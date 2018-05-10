@@ -1,0 +1,516 @@
+---
+title: 'Part 6: Over 10K - All Years'
+output:
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction 
+
+### Background
+
+The following is summary information on complete cases with salaries over $10,000. 
+
+### Libraries
+
+Load required libraries.
+
+```{r 0-libraries, warning=FALSE, message=FALSE}
+library(proto)
+library(gsubfn)
+library(RSQLite)
+library(knitr)
+library(data.table)
+library(plyr)
+library(dplyr)
+library(sqldf)
+library(ggplot2)
+library(RColorBrewer)
+library(grid)
+library(ggrepel)
+library(plotly)
+library(kableExtra)
+library(tidyr)
+
+# required files chunk 1
+# df10.csv
+
+# required files chunk 12
+```
+
+# Import and clean 
+
+### Import complete cases with salaries over 10K.
+
+### Clean data 
+
+Remove all cases where Community Boards are the agencies. This is to provide a more accurate list of agencies as there are 59 Community Boards and each is considered its own agency, although in reality these are small offices.
+
+Change the value of the Administrative Staff Analyst title to remove the trailing parenthesis.
+
+View the full dataframe. It includes 672578 observations of  22 variables.
+
+```{r 1}
+#import csv of all complete cases over 10k
+df10<- data.frame(read.csv("df10.csv"),stringsAsFactors = FALSE, strip.white=TRUE)
+
+#rename dataframe
+df10a<-df10
+
+#remove community boards
+df<-df10a[- grep("COMMUNITY BOARD", df10a$agency),]
+
+#change class to character
+df$Description <- as.character(df$Description)
+
+#clean title description to remove parenthesis
+df$Description[df$Description == "ADMINISTRATIVE STAFF ANALYST ("] <- "ADMINISTRATIVE STAFF ANALYST"
+
+# Intial results indicated this may need cleanup because there are not 84 agencies-- some spaces in the agency names are causing agencies to appear twice. The following trim function successfully reduced the number of unique agencies.
+trim <- function (x) gsub("^\\s+|\\s+$", "", x)
+df$agency <- trim(df$agency)
+
+#show structure
+str(df)
+
+```
+
+# All titles
+
+### Titles available in the most agencies
+
+```{r 2}
+
+dfallyears<-df
+
+df %>%
+  group_by(Description) %>%
+  summarise(count = n_distinct(agency))%>% 
+  arrange(desc(count))%>%
+  top_n(20)%>%
+  kable("html") %>%
+  kable_styling() 
+
+
+
+```
+
+
+### All titles - highest paid titles in 2017
+
+```{r 3, eval=TRUE}
+
+#salaries above 10k
+
+# highest paid titles in 2017
+df17<- dfallyears[dfallyears$year==2017,]
+
+topsal<-df17 %>%
+  group_by(Description) %>%
+  mutate(Count = n()) %>%
+  group_by(title, Description,  Count) %>%
+  summarise_at(vars(sal), funs(mean(., na.rm=TRUE)  ))%>%
+  arrange(desc(sal))
+
+kable(head(topsal,20))
+
+
+
+```
+
+### All titles - highest paid titles in 2017, excluding Commissioners
+
+```{r 3a}
+
+#remove commissioners
+df17a<-df17[- grep("COMMISSIONER", df17$Description),]
+
+topsal1<-df17a %>%
+  group_by(Description) %>%
+  mutate(Count = n()) %>%
+  group_by(title, Description,  Count) %>%
+  summarise_at(vars(sal), funs(mean(., na.rm=TRUE)  ))%>%
+  arrange(desc(sal))
+
+kable(head(topsal1,20))
+
+
+```
+
+
+```{r 3b, eval=FALSE}
+
+
+
+
+```
+
+# Select titles only
+
+
+### Subset select titles for cross-agency comparison
+
+Subset the dataframe to include only the top 20 titles represented by the most agencies. This reduces the dataframe to 116753 observations.
+
+These 20 titles represent 116753 of the 672578 jobs from years 2013 through 2016. 
+
+Issue: A title may have more than one title code, partly due to defunct title codes or special agency designations. To account for this, the grouping is performed on the Description value.
+
+
+```{r 4}
+
+dfsub1<- df[df$Description %in% c(
+  "COMMUNITY ASSOCIATE",
+  "ADMINISTRATIVE STAFF ANALYST",
+  "COMMUNITY COORDINATOR",
+  "PRINCIPAL ADMINISTRATIVE ASSOC",
+  "CLERICAL ASSOCIATE",
+  "COMPUTER SYSTEMS MANAGER",
+  "EXECUTIVE AGENCY COUNSEL",
+  "ADM MANAGER-NON-MGRL FRM M1/M2",
+  "ASSOCIATE STAFF ANALYST",
+  "COMMUNITY ASSISTANT",
+  "SECRETARY",
+  "ADMINISTRATIVE PUBLIC INFORMAT",
+  "AGENCY ATTORNEY",
+  "COMPUTER SPECIALIST (SOFTWARE)",
+  "STAFF ANALYST",
+  "ADMINISTRATIVE MANAGER",
+  "COMPUTER ASSOC (SOFTWARE)",
+  "PROCUREMENT ANALYST",
+  "COMPUTER ASSOC (OPERATIONS)",
+  "ACCOUNTANT"
+  ), ]
+
+str(dfsub1)
+
+
+dfsub1 %>%
+  group_by(Description) %>%
+  summarise(count = n_distinct(agency))%>% 
+  arrange(desc(count))%>%
+  top_n(20)%>%
+  kable("html") %>%
+  kable_styling() 
+```
+
+
+### Select titles - highest average salaries
+
+Group select titles with average salary and count of title.
+
+Arrange by descending average salary across all years.
+
+
+```{r 5}
+salbytitle1<-dfsub1 %>%
+  group_by(Description) %>%
+  mutate(Count = n()) %>%
+  group_by(Description,  Count) %>%
+  summarise_at(vars(sal), funs(mean(., na.rm=TRUE)  ))%>%
+  arrange(desc(sal))
+
+kable(head(salbytitle1))
+
+```
+
+### Select titles - average salaries by title and year
+
+Group select titles with average salary and count of title, by year.
+
+Arrange by title.
+
+
+```{r 6}
+salbytitle2<-dfsub1 %>%
+  group_by(Description, year) %>%
+  mutate(Count = n()) %>%
+  group_by(Description, year, Count) %>%
+  summarise_at(vars(sal), funs(mean(., na.rm=TRUE)  ))%>%
+  arrange(Description)
+
+kable(salbytitle2)
+```
+
+### Select titles - average salaries by title and year, with year comparison
+
+```{r 7}
+salbytitle3<-salbytitle2%>%
+  select(Description, year, sal)%>%
+  spread(year, sal)  
+
+kable(salbytitle3)
+
+```
+
+
+### Select titles - average salaries by agency and year, with count
+
+Group agencies represented in these select titles with average salary and count of title, by year.
+
+Arrange by title.
+
+```{r 8}
+salbyagency1<-dfsub1 %>%
+  group_by(agency, year) %>%
+  mutate(Count = n()) %>%
+  group_by(agency, year, Count) %>%
+  summarise_at(vars(sal), funs(mean(., na.rm=TRUE)  ))%>%
+  arrange(agency)
+
+kable(salbyagency1)
+```
+
+### Select titles - average salaries by agency and year, with year comparison
+
+```{r 9}
+salbyagency2<-salbyagency1%>%
+  select(agency, year, sal)%>%
+  spread(year, sal)  
+
+kable(salbyagency2)
+
+```
+
+### Select titles - headcounts by agency and year, with year comparison
+
+```{r 10}
+headcountbyagency<-salbyagency1%>%
+  select(agency, year, Count)%>%
+  spread(year, Count)  
+
+kable(headcountbyagency)
+```
+
+### Select titles - percent salary increases by title
+
+```{r 11}
+salbytitle3$rawdiff  <-(salbytitle3$'2017') - (salbytitle3$'2014')
+salbytitle3$pctdiff<-salbytitle3$rawdiff / (salbytitle3$'2014')
+kable(salbytitle3)
+```
+
+###  Select titles - percent headcount increases by agency
+
+```{r 12}
+#percent headcount increases by agency
+headcountbyagency$rawdiff  <-(headcountbyagency$'2017') - (headcountbyagency$'2014')
+
+headcountbyagency$pctdiff<-headcountbyagency$rawdiff / (headcountbyagency$'2014')
+
+#str(headcountbyagency)
+kable(headcountbyagency)
+
+```
+
+# Plots
+
+###  Plot - Select titles - percent salary increases by agency
+
+```{r 13-1}
+
+dfraises<- data.frame(read.csv("bestraises-selecttitles.csv"),stringsAsFactors = FALSE, strip.white=TRUE)
+
+#p2 <- ggplot(df12, aes(x = reorder(agency, -pctincrease), y = pctincrease)) +
+         # geom_bar(stat = "identity")
+#p2
+         
+         
+dfraises$title <- factor(dfraises$title, levels = unique(dfraises$title)[order(dfraises$pctincrease, decreasing = TRUE)])
+
+
+p1a <- plot_ly(
+  data = dfraises, 
+  x = ~title, 
+  y = ~pctincrease, 
+  type = 'bar', 
+  hoverinfo='text',
+  fill="#D7BDE2",
+  text = ~paste(
+    'Agency: ', title,
+    '<br> Salary Percent Increase: ', pctincrease) ) %>%
+  layout(title="Salary increases 2014-2017, top 10 titles, select titles", margin = list(b = 200), xaxis = list(tickangle = 90))
+
+p1a
+
+```
+
+
+###  Plot - Select titles - percent headcount increases by agency
+
+```{r 13-2}
+
+dfheadcount<- data.frame(read.csv("headcountbyagency-pct-increase-top10.csv"),stringsAsFactors = FALSE, strip.white=TRUE)
+
+#p2 <- ggplot(df12, aes(x = reorder(agency, -pctincrease), y = pctincrease)) +
+         # geom_bar(stat = "identity")
+#p2
+         
+         
+dfheadcount$abbreviation <- factor(dfheadcount$abbreviation, levels = unique(dfheadcount$abbreviation)[order(dfheadcount$pctincrease, decreasing = TRUE)])
+
+
+p1 <- plot_ly(
+  data = dfheadcount, 
+  x = ~abbreviation, 
+  y = ~pctincrease, 
+  type = 'bar', 
+  hoverinfo='text',
+  fill="#D7BDE2",
+  text = ~paste(
+    'Agency: ', agency,
+    '<br> Headcount Percent Increase: ', pctincrease) ) %>%
+  layout(title="Headcount increases 2014-2017, top 10 agencies, select titles", margin = list(b = 200), xaxis = list(tickangle = 90))
+
+p1
+
+```
+
+
+###  Plot - All Titles - Top 10 agencies with the most jobs over $10K, 2017
+
+```{r 14}
+df3<- data.frame(read.csv("agency17high.csv"),stringsAsFactors = FALSE)
+
+df3 %>% mutate_if(is.factor, as.character) -> df3
+
+p2 <- df3 %>%
+  plot_ly(labels = ~ADDRESS, values = ~n) %>%
+  add_pie(hole = 0.6) %>%
+  layout(title = "Agencies with the most jobs over $10K",  showlegend = T,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+p2
+
+```
+
+
+###  Plot - All Titles - Top 10 titles with the most jobs over $10K, 2017
+
+```{r 15}
+df4<- data.frame(read.csv("agency17high-titles.csv"),stringsAsFactors = FALSE)
+
+df4 %>% mutate_if(is.factor, as.character) -> df4
+
+p3 <- df4 %>%
+  plot_ly(labels = ~Description, values = ~n) %>%
+  add_pie(hole = 0.6) %>%
+  layout(title = "Titles with the most jobs over $10K",  showlegend = T,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+p3
+
+```
+
+
+###  Plot - All Titles - Histogram: Distribution of 10K+ salaries, 2017
+
+```{r 16}
+
+hist(df17$sal, 
+     main ="Distribution of salaries over $10K, 2017",
+     xlab="Salary",
+     border="black",
+     col="#58D68D",
+     xlim=c(0,200000),
+     ylim=c(0,35000),
+     breaks = seq(0, 350000, by = 5000)
+     #prob=TRUE
+     #breaks=c(0,10000,20000,30000,40000,50000,60000,70000,80000,90000,100000,110000,120000,130000,350000)
+     )
+
+
+```
+
+###  Plot - All Titles - Salaries between 85K and 90K
+
+What constitutes the spike in the histogram between \$85,000 and \$95,000?
+
+```{r 17}
+df5<- data.frame(read.csv("titles17-8590k.csv"),stringsAsFactors = FALSE)
+
+df5 %>% mutate_if(is.factor, as.character) -> df5
+
+p4 <- df5 %>%
+  plot_ly(labels = ~Description, values = ~n) %>%
+  add_pie(hole = 0.6) %>%
+  layout(title = "Titles between $85K and $90K",  showlegend = T,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+p4
+
+```
+
+
+###   Plot - Which titles have employees across the most agencies, excluding Community Boards?
+
+###   Plot - For select titles, do some agencies pay more?
+
+###   Plot - Titles with the greatest salary ranges 
+
+Best opportunities for promotion within the same title
+
+
+# Correlations
+
+###   Correlation with budget
+
+###   Correlation with unions
+
+# Export files
+
+Export:
+
+Subset of selected 20 titles.
+
+Summary of salaries by title with year over year comparisons.
+
+Summary of salaries by agency with year over year comparisons.
+
+Headcount by agency, wide format
+
+Average salary by title, long format
+
+Headcount and average salary by title, long format
+
+Percent headcount increases by agency
+
+2017 payroll only, complete cases, all titles
+
+
+```{r 20, eval=FALSE}
+#changed to eval=FALSE after first run.
+
+#subset of selected titles only
+write.csv(dfsub1, file = "dfsub1.csv")
+
+#average salary comparison with one column for each year
+write.csv(salbytitle3, file = "sal-title-year-comparison.csv")
+
+#headcount by agency with one column for each year
+write.csv(headcountbyagency, file = "headcount-agency-year-comparison.csv")
+
+#average salary comparison with years in one column
+write.csv(salbytitle2, file = "sal-title-year-comparison-long.csv")
+
+#headcount and average salary by agency with years in one column
+write.csv(salbyagency1, file = "sal-agency-year-comparison-long.csv")
+
+#percent headcount increases by agency
+write.csv(headcountbyagency, file = "headcountbyagency-pct-increase.csv")
+
+#2017 payroll only, complete cases, all titles
+write.csv(df17, file = "df17.csv")
+
+```

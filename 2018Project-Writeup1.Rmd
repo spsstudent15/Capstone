@@ -101,7 +101,7 @@ For easier analysis, the dataset was split into salaries under $10,000 and over 
 
 Unions with the most sub-10K employees are "Competitive OJ", DC37 Job Training Participants, "Part Time OJ", Seasonals, and DC37 School Crossing Guards. The "OJ" titles and Seasonals are likely not union titles, just a non-union category.
 
-Agenices with the most sub-10K employees are DCAS, Parks, Sanitation, NYPD, and NYCHA. These agencies hire many hourly part-time and seasonal workers. Parks hires seasonal staff during the summer to staff city beaches, and Sanitation hires extra snow removal staff during the winter.
+Agencies with the most sub-10K employees are DCAS, Parks, Sanitation, NYPD, and NYCHA. These agencies hire many hourly part-time and seasonal workers. Parks hires seasonal staff during the summer to staff city beaches, and Sanitation hires extra snow removal staff during the winter.
 
 [See Chart 3.1]
 
@@ -121,7 +121,7 @@ The highest average salaries under $10,000 are for City Service Aides, Council A
 
 Unions with the most 10K+ salaries are the Police Officers Benevolent Association (PBA), DC37 Social Service Titles, DC37 Clerical Titles, Correction Officers Benevolent Association, and the Uniformed Firefighters Association.
 
-Agencies with the most 10K+ salaries are the NYPD, FDNY, HRA (Human Resources Agency/Social Services), COrrection, Education, and Sanitation.
+Agencies with the most 10K+ salaries are the NYPD, FDNY, HRA (Human Resources Agency/Social Services), Correction, Education, and Sanitation.
 
 [See Chart 3.3]
 
