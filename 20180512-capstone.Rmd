@@ -1,0 +1,125 @@
+---
+title: "New York City Civil Service Jobs"
+author: "Armenoush Aslanian-Persico"
+date: "May 2018"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Note to the reader
+
+The following is a Capstone project for the Master of Science in Data Science degree at the CUNY School of Professional Studies.
+
+Please view the interactive website for this project at:
+
+https://armenoush.shinyapps.io/nycjobs/
+
+Appendices with code, tables and plots are available at:
+
+http://rpubs.com/aapsps
+
+
+# Data
+
+## Background
+
+The City of New York employs over 300,000 individuals in full-time and part-time positions. These people work in over 60 city agencies, including large agencies like the Department of Transportation, and small agencies like the Department of Cultural Affairs. 
+
+Thanks to the city's 2012 Open Data Law, city agencies have increasingly made their data public. While the public data is sometimes incomplete, intentionally censored, anonymized, or not maintained, it can still be valuable for research purposes.
+
+This project focuses on two datasets available through NYC's Open Data website. The first is a list of all employees and their salaries, referred to here as the payroll dataset. The second dataset is a list of job titles, title codes, and other title information, referred to here as the titles dataset.
+
+## Payroll dataset
+
+The payroll dataset is partially anonymized, with first initial and last name. It contains salary, year, agency name, agency code, and title code. Importantly, it does not contain the person's job title. 
+
+The payroll dataset included the 2014 and 2015 calendar years until late April 2018, when it was updated to include the 2016 and 2017 calendar years. This project was updated to include the additional years.
+
+The payroll dataset includes 1,161,078 records. This has a consistent split of observations across four years: 269,838 records for 2014; 300,653 records for 2015; 278,869 records for 2016; 311,718 records for 2017. Each record represents a unique employee.
+
+## Titles dataset
+
+In the titles dataset, each observation represents a unique civil service title. A basic knowledge of the civil service system is necessary to understand this dataset.
+
+New York City goverment, like other municipal goverments, functions according to the civil service system. This system requires each employee to be serving in a civil service title. An employee may be hired through a job posting or through a civil service exam list. Employees who are hired provisionally are potentially at risk of being terminated if a civil service exam is scheduled for their title. Employees who attain a permanent civil service title have a very low risk of being terminated. A person who takes and passes a civil service exam for a title can become permanent in that title if they score well enough and are "picked up," or chosen, by an agency.
+
+As a result of the civil service system, these titles significantly shape a person's city career. Each title has a minimum and maximum salary. Therefore, people continue to take civil service exams throughout their careers to attain titles with higher salary maximums, and may also continue to apply to city jobs in different titles for the same reason.
+
+The titles dataset required several transformations to achieve a cleaned version for efficient matching with the paryoll dataset.
+
+The titles dataset originally included multiple subtitles belonging to the same parent title. For efficient matching, multiple subtitles were combined into one title in the cleaned dataset. For example, a Sign Language Interpreter may have 5 level of title, where an employee may be promoted through the levels. The count of subtitles was captured in the CountSubTitles column.
+
+In the cleaned titles dataset, the lowest salary of the lowest title and the highest salary of the highest title was captured. This was represented by the minimum of the minimum rate, Min.MinRate, and the maximum of the maximum rate, Max.MaxRate. For some titles, both of these values were zero. The SalaryMinMaxValid column was created as an indicator column to flag these observaitons as invalid. 
+
+## Merged dataset
+
+When matched with the payroll set, the titles dataset can provide title information about city employees. This match was performed based on the title code key. 
+
+See Appendix A, Part 2 for the details of this merge.
+
+The merged dataset contains 20 variables. The variables most relevant to this analysis are listed here.
+
+* title - the title code, alphanumeric code referring to the civil service title.
+
+* year - the calendar year of the payroll data, which ranges from 2014 to 2017.
+
+* agency - the name of the city agency.
+
+* empname - the first initial and last name of the employee.
+
+* sal - the salary earned by the employee in the given calendar year. 
+
+* Description - the civil service title name.
+
+* SalaryMinMaxValid - a check on if the title data is displaying a valid salary for this observation.
+
+* PayType - a category of salary level to indicate if the salary is annual, hourly, or both. A title ranging in salary from \$300 to \$10,000 may be hiring both annual and hourly workers.
+
+## Dropped observations
+
+Of the approximately 1.1 million records, about 300,000 resulted in incomplete obvservations after the merge. This was due to no match found for the title code. Through the Open Data website, I inquired with the Department of Citywide Administrative Services about the incomplete titles dataset and was informed that the city does not provide title codes for "non-mayoral" agencies. 
+
+Because of the lack of title information, these incomplete observations were excluded from the analysis. The discarded observations were mostly New York Transit Authority (MTA) and City University of New York (CUNY) employees. These are considered to be non-mayoral agencies, but the employees are still included in the payroll list.
+
+The remaining complete observations were mostly annual salaries, with valid salary values, and in active titles. 
+
+See Appendix A, Part 3 for the summary details of the complete cases.
+
+# Scope
+
+
+
+## Salaries under $10K
+
+This includes trades workers such as carpenters, painters, and mechanics, which are full-time, but are listed with an hourly salary instead of annual. This causes these employees to appear as low-wage workers when they may actually earn a mid- or high-range annual salary. For clarity, these have been separated instead of attempting to calculate an equivalent annual rate.
+
+# Findings
+
+## All Salaries
+
+## Influencers
+
+## Flexible Titles
+
+## Who's Earning
+
+## Who's Hiring
+
+## Pay Raises
+
+## Growing Agencies
+
+## Promotions
+
+# Sources
+
+
